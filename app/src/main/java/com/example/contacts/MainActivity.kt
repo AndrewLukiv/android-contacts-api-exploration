@@ -1,6 +1,7 @@
 package com.example.contacts
 
 import android.content.ContentResolver
+import android.database.Cursor
 import android.os.Bundle
 import android.provider.ContactsContract
 import androidx.activity.ComponentActivity
@@ -63,7 +64,7 @@ fun ContactsList() {
       mutableStateOf(listOf<Contact>())
     }
     LaunchedEffect( true) {
-        contacts= retrieveContacts(contentResolver)
+        retrieveContacts(contentResolver)?.also { contacts = it }
     }
     LazyColumn{
       for (contact in contacts){
@@ -78,21 +79,34 @@ data class Contact(
     val name: String,
 )
 
-fun retrieveContacts(contentResolver: ContentResolver): List<Contact> {
+fun retrieveContacts(contentResolver: ContentResolver): List<Contact>? {
     val cursor = contentResolver.query(ContactsContract.Contacts.CONTENT_URI, null, null, null)
-    val contacts = mutableListOf<Contact>()
-    cursor?.use { cursor ->
-        if (cursor.moveToFirst()) {
-            do {
+    return cursor?.toIterable{
                 val nameColumnIndex =
                     cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
                 val idColumnIndex =
                     cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
                 val name = cursor.getStringOrNull(nameColumnIndex).toString()
                 val id = cursor.getString(idColumnIndex)
-                contacts.add(Contact(id, name))
-            } while (cursor.moveToNext())
+                Contact(id, name)
+    }?.toList()
+}
+class CursorIterator<T>(private val cursor:Cursor,private val converter:(Cursor)->T):Iterator<T>{
+    override fun hasNext(): Boolean {
+        return !cursor.isLast
+    }
+
+    override fun next(): T {
+        cursor.moveToNext()
+        return converter(cursor)
+    }
+
+}
+fun <T>Cursor.toIterable(converter: (Cursor) -> T):Iterable<T>{
+    return object :Iterable<T>{
+        override fun iterator(): Iterator<T> {
+            this@toIterable.moveToFirst()
+            return CursorIterator(this@toIterable,converter)
         }
     }
-    return contacts
 }
