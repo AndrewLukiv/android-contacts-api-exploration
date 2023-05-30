@@ -24,6 +24,7 @@ import com.example.contacts.ui.theme.SystemContactsExplorationTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.database.getLongOrNull
 import androidx.core.database.getStringOrNull
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -104,11 +105,9 @@ data class Contact(
 fun retrieveContacts(contentResolver: ContentResolver): List<Contact>? {
     val cursor = contentResolver.query(ContactsContract.Contacts.CONTENT_URI, null, null, null)
     val contacts = cursor?.toIterable {
-        val nameColumnIndex =
-            it.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
-        val idColumnIndex = it.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
         Contact(
-            id = it.getString(idColumnIndex), name = it.getStringOrNull(nameColumnIndex).toString()
+            id = it.getString(ContactsContract.Contacts.LOOKUP_KEY),
+            name = it.getStringOrNull(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY).toString()
         )
     }?.toList()
     cursor?.close()
@@ -140,16 +139,10 @@ fun retrieveRawContacts(
             null
         )
         val rawContacts = cursor?.toIterable {
-            val accountTypeColumnIndex =
-                it.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
-            val accountNameColumnIndex =
-                it.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_NAME)
-            val idColumnIndex =
-                it.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
             RawContact(
-                id = it.getLong(idColumnIndex),
-                accountName = it.getString(accountNameColumnIndex),
-                accountType = it.getString(accountTypeColumnIndex)
+                id = it.getLong(ContactsContract.RawContacts._ID),
+                accountName = it.getString(ContactsContract.RawContacts.ACCOUNT_NAME),
+                accountType = it.getString(ContactsContract.RawContacts.ACCOUNT_TYPE)
             )
         }?.toList()
 
@@ -183,4 +176,24 @@ fun <T> Cursor.toIterable(converter: (Cursor) -> T): Iterable<T> {
             return CursorIterator(this@toIterable, converter)
         }
     }
+}
+
+fun Cursor.getStringOrNull(column: String): String? {
+    val columnIndex = this.getColumnIndexOrThrow(column)
+    return this.getStringOrNull(columnIndex)
+}
+
+fun Cursor.getString(column: String): String {
+    val columnIndex = this.getColumnIndexOrThrow(column)
+    return this.getString(columnIndex)
+
+}
+fun Cursor.getLongOrNull(column: String): Long? {
+    val columnIndex = this.getColumnIndexOrThrow(column)
+    return this.getLongOrNull(columnIndex)
+}
+
+fun Cursor.getLong(column: String): Long {
+    val columnIndex = this.getColumnIndexOrThrow(column)
+    return this.getLong(columnIndex)
 }
